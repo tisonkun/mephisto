@@ -15,7 +15,20 @@
 fn main() -> std::io::Result<()> {
     std::env::set_var("PROTOC", protobuf_src::protoc());
 
-    let mut config = prost_build::Config::new();
-    config.enum_attribute(".", "#[derive(::enum_iterator::Sequence)]");
-    config.compile_protos(&["eraftpb.proto"], &["proto"])
+    #[cfg(not(feature = "service"))]
+    {
+        prost_build::Config::new()
+            .enum_attribute(".", "#[derive(::enum_iterator::Sequence)]")
+            .compile_protos(&["protos/eraftpb.proto"], &["protos"])
+    }
+
+    #[cfg(feature = "service")]
+    {
+        tonic_build::configure()
+            .enum_attribute(".", "#[derive(::enum_iterator::Sequence)]")
+            .compile(
+                &["protos/eraftpb.proto", "protos/eraftrpc.proto"],
+                &["protos"],
+            )
+    }
 }

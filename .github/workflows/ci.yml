@@ -45,26 +45,23 @@ jobs:
       - name: Check format
         run: cargo fmt --all --check
 
-  test:
-    name: Build and test
+  raft-test:
+    name: Build and test (Raft)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --all-features --tests --examples --benches
       - name: Run tests
-        run: cargo test --workspace -- --nocapture
+        run: |
+          cargo test -p mephisto-raft --features service -- --nocapture
+          cargo test -p mephisto-raft -- --nocapture
+      - name: Run failppoints tests
+        run: |
+          cargo test -p mephisto-raft --features failpoints --test raft_tests -- --nocapture
+          cargo test -p mephisto-raft --features failpoints,service --test raft_tests -- --nocapture
       - name: Run benches
-        run: cargo bench --workspace -- --test
-
-  failpoints:
-    name: Failpoints tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - name: Run failpoints tests
-        run: cargo test --workspace --features failpoints --test raft_tests -- --nocapture
+        run: cargo bench -p mephisto-raft -- --test
 
   required:
     name: Required
@@ -79,8 +76,7 @@ jobs:
         run: |
           if [[ ! ( \
                  "${{ needs.check.result }}" == "success" \
-              && "${{ needs.test.result }}" == "success" \
-              && "${{ needs.failpoints.result }}" == "success" \
+              && "${{ needs.raft-test.result }}" == "success" \
               ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit -1

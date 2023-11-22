@@ -24,7 +24,9 @@ keywords.workspace = true
 repository.workspace = true
 
 [features]
+default = []
 failpoints = ["fail/failpoints"]
+service = ["dep:tonic"]
 
 [dependencies]
 bytes = "1.4.0"
@@ -34,6 +36,7 @@ fail = "0.5.1"
 getset = "0.1.1"
 prost = "0.12.1"
 thiserror = "1.0"
+tonic = { version = "0.10.2", optional = true }
 rand = "0.8.5"
 tracing = "0.1.37"
 
@@ -41,10 +44,11 @@ tracing = "0.1.37"
 anyhow = "1.0.71"
 criterion = "0.5.1"
 goldenfile = "1.4.5"
-itertools = "0.11.0"
+itertools = "0.12.0"
 regex = "1.8.4"
 tracing-subscriber = "0.3.17"
 
 [build-dependencies]
 prost-build = "0.12.1"
+tonic-build = "0.10.2"
 protobuf-src = "1.1.0"
