@@ -1,0 +1,13 @@
+headerPath = "Apache-2.0.txt"
+
+includes = [
+    '**/*.proto',
+    '**/*.rs',
+    '**/*.yml',
+    '**/*.yaml',
+    '**/Cargo.toml',
+]
+
+[properties]
+inceptionYear = 2023
+copyrightOwner = "CratesLand Contributors"
