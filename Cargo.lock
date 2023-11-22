@@ -816,10 +816,12 @@ dependencies = [
  "anyhow",
  "crossbeam",
  "mephisto-raft",
+ "rayon",
  "tokio",
  "tokio-stream",
  "tonic",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

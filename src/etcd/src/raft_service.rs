@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::anyhow;
 use crossbeam::channel::{Receiver, Sender};
@@ -27,6 +27,7 @@ use mephisto_raft::{
 use tokio::{
     runtime::Runtime,
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
+    time::sleep,
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{
@@ -61,7 +62,9 @@ pub fn start_raft_service(
     let (tx_inbound, rx_inbound) = crossbeam::channel::unbounded();
     let (tx_outbound, rx_outbound) = tokio::sync::mpsc::unbounded_channel();
 
-    let runtime = tokio::runtime::Builder::new_multi_thread().build()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
 
     // - inbound
     {
@@ -121,6 +124,8 @@ pub fn start_raft_service(
         let span = error_span!("RaftService", id = this.id);
         runtime.spawn(
             async move {
+                // FIXME (@tisonkun) retry connect
+                sleep(Duration::from_secs(1)).await;
                 match run_client(this, peers, rx_outbound).await {
                     Ok(()) => info!("RaftService shutdown normally"),
                     Err(err) => error!(?err, "RaftService shutdown improperly"),
