@@ -12,20 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[workspace]
-members = [
-    'src/etcd',
-    'src/home',
-    'src/raft',
-]
+[package]
+name = "mephistio-etcd"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+readme.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
 
-resolver = "2"
-
-[workspace.package]
-version = "0.3.0"
-edition = "2021"
-authors = ["tison <wander4096@gmail.com>"]
-readme = "README.md"
-license = "Apache-2.0"
-repository = "https://github.com/cratesland/mephisto/"
-keywords = ["distributed-systems", "raft"]
+[dependencies]
+anyhow = "1.0.75"
+crossbeam = "0.8.2"
+mephisto-raft = { path = "../raft", features = ["service"] }
+tokio = { version = "1.34.0", features = ["full"] }
+tokio-stream = { version = "0.1.14", features = ["full"] }
+tonic = "0.10.2"
+tracing = "0.1.40"

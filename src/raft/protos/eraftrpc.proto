@@ -18,7 +18,8 @@ syntax = "proto3";
 package eraftpb;
 
 import "eraftpb.proto";
+import "google/protobuf/empty.proto";
 
 service RaftMessageService {
-  rpc Unordered(stream eraftpb.Message) returns (stream eraftpb.Message) {}
+  rpc Unordered(stream eraftpb.Message) returns (google.protobuf.Empty) {}
 }
