@@ -24,6 +24,7 @@ keywords.workspace = true
 
 [dependencies]
 anyhow = "1.0.75"
+backon = "0.4.1"
 crossbeam = "0.8.2"
 mephisto-raft = { path = "../raft", features = ["service"] }
 tokio = { version = "1.34.0", features = ["full"] }

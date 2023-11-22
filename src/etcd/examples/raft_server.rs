@@ -14,8 +14,10 @@
 
 use std::time::Duration;
 
+use crossbeam::sync::WaitGroup;
 use mephistio_etcd::{raft_node::RaftNode, raft_service::start_raft_service};
 use mephisto_raft::Peer;
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use tracing::Level;
 
 fn main() -> anyhow::Result<()> {
@@ -45,10 +47,21 @@ fn main() -> anyhow::Result<()> {
         shutdowns.push((runtime, shutdown_node));
     }
 
-    for _ in 0..10 {
-        std::thread::sleep(Duration::from_secs(1));
-    }
-    drop(shutdowns);
+    std::thread::sleep(Duration::from_secs(5));
+
+    let wg = WaitGroup::new();
+    let wgs = (0..shutdowns.len()).map(|_| wg.clone()).collect::<Vec<_>>();
+    shutdowns
+        .into_par_iter()
+        .zip(wgs)
+        .for_each(|((rt, tx), wg)| {
+            let _ = tx.send(());
+            drop(rt);
+            drop(wg);
+        });
+    wg.wait();
+
+    std::thread::sleep(Duration::from_secs(5));
 
     Ok(())
 }

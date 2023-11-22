@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 
 use anyhow::anyhow;
+use backon::{ExponentialBuilder, Retryable};
 use crossbeam::channel::{Receiver, Sender};
 use mephisto_raft::{
     eraftpb::{
@@ -27,7 +28,6 @@ use mephisto_raft::{
 use tokio::{
     runtime::Runtime,
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
-    time::sleep,
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{
@@ -97,12 +97,15 @@ pub fn start_raft_service(
         ) -> anyhow::Result<()> {
             let mut tx_outbounds = HashMap::new();
 
-            for peer in peers {
+            for peer in peers.iter() {
                 if peer.id != this.id {
+                    let connect = || async move {
+                        let remote_addr = format!("http://{}", peer.address);
+                        RaftMessageServiceClient::connect(remote_addr).await
+                    };
+                    let mut client = connect.retry(&ExponentialBuilder::default()).await?;
                     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-                    let addr = format!("http://{}", peer.address);
                     let request = Request::new(UnboundedReceiverStream::new(rx));
-                    let mut client = RaftMessageServiceClient::connect(addr).await?;
                     tokio::spawn(async move {
                         // FIXME (@tisonkun) handle exception and propagate
                         let _ = client.unordered(request).await;
@@ -124,8 +127,6 @@ pub fn start_raft_service(
         let span = error_span!("RaftService", id = this.id);
         runtime.spawn(
             async move {
-                // FIXME (@tisonkun) retry connect
-                sleep(Duration::from_secs(1)).await;
                 match run_client(this, peers, rx_outbound).await {
                     Ok(()) => info!("RaftService shutdown normally"),
                     Err(err) => error!(?err, "RaftService shutdown improperly"),
