@@ -13,6 +13,7 @@
 // limitations under the License.
 
 fn main() -> std::io::Result<()> {
+    std::env::set_var("PROTOC", protobuf_src::protoc());
     let proto_root = "protos";
     println!("cargo:rerun-if-changed={proto_root}");
 

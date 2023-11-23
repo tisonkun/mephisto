@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(btree_cursors)]
-
-pub mod etcd;
-pub mod raft;
+pub mod key_index;
+pub mod revision;
+pub mod tree_index;
