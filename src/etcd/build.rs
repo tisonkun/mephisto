@@ -12,5 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod etcd;
-pub mod raft;
+fn main() -> std::io::Result<()> {
+    let proto_root = "protos";
+    println!("cargo:rerun-if-changed={proto_root}");
+
+    tonic_build::configure().compile(
+        &[
+            "protos/auth.proto",
+            "protos/kv.proto",
+            "protos/rpc.proto",
+            "protos/v3election.proto",
+            "protos/v3lock.proto",
+        ],
+        &[proto_root],
+    )
+}

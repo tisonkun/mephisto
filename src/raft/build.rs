@@ -14,7 +14,9 @@
 
 fn main() -> std::io::Result<()> {
     std::env::set_var("PROTOC", protobuf_src::protoc());
-    println!("cargo:rerun-if-changed=protos");
+
+    let proto_root = "protos";
+    println!("cargo:rerun-if-changed={proto_root}");
 
     #[cfg(not(feature = "service"))]
     {
@@ -29,7 +31,7 @@ fn main() -> std::io::Result<()> {
             .enum_attribute(".", "#[derive(::enum_iterator::Sequence)]")
             .compile(
                 &["protos/eraftpb.proto", "protos/eraftrpc.proto"],
-                &["protos"],
+                &[proto_root],
             )
     }
 }

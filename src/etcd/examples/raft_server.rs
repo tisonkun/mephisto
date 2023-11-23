@@ -15,7 +15,7 @@
 use std::time::Duration;
 
 use crossbeam::sync::WaitGroup;
-use mephistio_etcd::{raft_node::RaftNode, raft_service::start_raft_service};
+use mephistio_etcd::raft::{node::RaftNode, service::start_raft_service};
 use mephisto_raft::Peer;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use tracing::Level;
