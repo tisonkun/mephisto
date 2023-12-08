@@ -47,7 +47,7 @@ impl EtcdState {
     pub fn put(&mut self, key: Bytes, value: Bytes) -> u64 {
         let rev = {
             self.current_rev += 1;
-            Revision::new0(self.current_rev)
+            Revision::main(self.current_rev)
         };
 
         let (c, ver) = if let Ok(IndexGet {

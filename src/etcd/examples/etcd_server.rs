@@ -14,21 +14,37 @@
 
 use std::{env::temp_dir, sync::Arc};
 
-use mephistio_etcd::etcd::{
-    pb::etcdserverpb::kv_server::KvServer, service::KvService, state::EtcdState,
+use mephistio_etcd::{
+    etcd::{pb::etcdserverpb::kv_server::KvServer, service::KvService, state::EtcdState},
+    raft::{node::RaftNode, service::start_raft_service},
 };
+use mephisto_raft::Peer;
 use tokio::sync::Mutex;
 use tonic::transport::Server;
+use tracing::Level;
 
 fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .init();
+
+    let peer = Peer {
+        id: 1,
+        address: "127.0.0.1:10386".to_string(),
+    };
+
+    let (_runtime, tx_outbound, rx_inbound) =
+        start_raft_service(peer.clone(), vec![peer.clone()].clone())?;
+    let node = RaftNode::new(peer.clone(), vec![peer.clone()], rx_inbound, tx_outbound)?;
+    let tx_api = node.tx_api();
+    node.run();
+
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
 
     let state = EtcdState::new(dbg!(temp_dir()));
-    let service = KvService {
-        state: Arc::new(Mutex::new(state)),
-    };
+    let service = KvService::new(peer.id, Arc::new(Mutex::new(state)), tx_api);
 
     runtime.block_on(async move {
         let addr = "127.0.0.1:2379".parse()?;

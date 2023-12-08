@@ -201,8 +201,8 @@ mod tests {
     fn test_generation_walk() {
         let g = Generation::new(
             3,
-            Revision::new0(2),
-            vec![Revision::new0(2), Revision::new0(4), Revision::new0(6)],
+            Revision::main(2),
+            vec![Revision::main(2), Revision::main(4), Revision::main(6)],
         );
 
         struct C(fn(Revision) -> bool, Option<usize>);

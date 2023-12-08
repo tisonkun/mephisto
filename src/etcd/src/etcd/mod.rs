@@ -15,6 +15,7 @@
 use bytes::Bytes;
 
 pub mod backend;
+pub mod id;
 pub mod mvcc;
 pub mod pb;
 pub mod service;

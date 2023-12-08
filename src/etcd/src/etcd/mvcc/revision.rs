@@ -42,7 +42,7 @@ pub struct Revision {
 }
 
 impl Revision {
-    pub fn new0(main: u64) -> Self {
+    pub fn main(main: u64) -> Self {
         Self { main, sub: 0 }
     }
 

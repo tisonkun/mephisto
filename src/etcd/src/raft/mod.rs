@@ -12,5 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use derive_new::new;
+use tokio::sync::oneshot;
+
 pub mod node;
 pub mod service;
+
+#[derive(new, Debug)]
+pub struct ApiProposeMessage {
+    id: u64,
+    data: Vec<u8>,
+    resp: oneshot::Sender<Vec<u8>>,
+}

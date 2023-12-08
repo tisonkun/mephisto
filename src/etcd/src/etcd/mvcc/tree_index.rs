@@ -110,9 +110,9 @@ mod tests {
     fn test_tree_index_get() {
         let mut ti = TreeIndex::default();
         let key = Bytes::from_static("foo".as_ref());
-        let created = Revision::new0(2);
-        let modified = Revision::new0(4);
-        let deleted = Revision::new0(6);
+        let created = Revision::main(2);
+        let modified = Revision::main(4);
+        let deleted = Revision::main(6);
         ti.put(key.clone(), created);
         ti.put(key.clone(), modified);
         ti.tombstone(key.clone(), deleted).unwrap();
@@ -142,24 +142,24 @@ mod tests {
     fn test_tree_index_tombstone() {
         let mut ti = TreeIndex::default();
         let key = Bytes::from_static("foo".as_ref());
-        ti.put(key.clone(), Revision::new0(1));
-        ti.tombstone(key.clone(), Revision::new0(2)).unwrap();
+        ti.put(key.clone(), Revision::main(1));
+        ti.tombstone(key.clone(), Revision::main(2)).unwrap();
         assert_eq!(Err(RevisionNotFound), ti.get(key.clone(), 2));
         assert_eq!(
             Err(RevisionNotFound),
-            ti.tombstone(key.clone(), Revision::new0(3))
+            ti.tombstone(key.clone(), Revision::main(3))
         );
     }
 
     #[test]
     fn test_tree_index_revisions() {
         let mut ti = TreeIndex::default();
-        ti.put("foo".into(), Revision::new0(1));
-        ti.put("foo1".into(), Revision::new0(2));
-        ti.put("foo2".into(), Revision::new0(3));
-        ti.put("foo2".into(), Revision::new0(4));
-        ti.put("foo1".into(), Revision::new0(5));
-        ti.put("foo".into(), Revision::new0(6));
+        ti.put("foo".into(), Revision::main(1));
+        ti.put("foo1".into(), Revision::main(2));
+        ti.put("foo2".into(), Revision::main(3));
+        ti.put("foo2".into(), Revision::main(4));
+        ti.put("foo1".into(), Revision::main(5));
+        ti.put("foo".into(), Revision::main(6));
 
         #[derive(new, Debug)]
         struct TestCase {
@@ -213,7 +213,7 @@ mod tests {
                 ti.revisions(key.into(), end.map(Into::into), rev, limit);
             assert_eq!(total, actual_total, "{dbg}");
             assert_eq!(
-                revs.into_iter().map(Revision::new0).collect::<Vec<_>>(),
+                revs.into_iter().map(Revision::main).collect::<Vec<_>>(),
                 actual_revs,
                 "{dbg}"
             )

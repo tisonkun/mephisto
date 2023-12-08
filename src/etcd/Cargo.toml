@@ -23,9 +23,10 @@ repository.workspace = true
 keywords.workspace = true
 
 [dependencies]
-bytes = "1.5.0"
 anyhow = "1.0.75"
 backon = "0.4.1"
+bytes = "1.5.0"
+chrono = "0.4.31"
 crossbeam = "0.8.2"
 derive-new = "0.6.0"
 mephisto-raft = { path = "../raft", features = ["service"] }

@@ -13,16 +13,24 @@
 // limitations under the License.
 
 use std::{
+    collections::BTreeMap,
     thread,
     time::{Duration, Instant},
 };
 
 use crossbeam::channel::{Receiver, Select, Sender, TryRecvError};
 use mephisto_raft::{
-    eraftpb, eraftpb::Message, fatal, storage::MemStorage, Config, Peer, RawNode, StateRole,
+    eraftpb,
+    eraftpb::{Entry, EntryType, Message},
+    fatal,
+    storage::MemStorage,
+    Config, Peer, RawNode, StateRole,
 };
-use tokio::sync::mpsc::UnboundedSender;
-use tracing::{error, error_span, info};
+use prost::encoding::{decode_varint, encode_varint, encoded_len_varint};
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
+use tracing::{debug, error, error_span, info};
+
+use crate::raft::ApiProposeMessage;
 
 pub struct RaftNode {
     id: u64,
@@ -36,6 +44,10 @@ pub struct RaftNode {
     tx_shutdown: Sender<()>,
     rx_shutdown: Receiver<()>,
     tick: Receiver<Instant>,
+
+    tx_api: Sender<ApiProposeMessage>,
+    rx_api: Receiver<ApiProposeMessage>,
+    responses: BTreeMap<u64, oneshot::Sender<Vec<u8>>>,
 }
 
 impl RaftNode {
@@ -63,6 +75,7 @@ impl RaftNode {
         storage.wl().mut_hard_state().term = 1;
 
         let (tx_shutdown, rx_shutdown) = crossbeam::channel::bounded(1);
+        let (tx_api, rx_api) = crossbeam::channel::unbounded();
         let tick = crossbeam::channel::tick(Duration::from_millis(100));
 
         Ok(RaftNode {
@@ -74,11 +87,18 @@ impl RaftNode {
             tx_shutdown,
             rx_shutdown,
             tick,
+            tx_api,
+            rx_api,
+            responses: BTreeMap::new(),
         })
     }
 
     pub fn tx_shutdown(&self) -> Sender<()> {
         self.tx_shutdown.clone()
+    }
+
+    pub fn tx_api(&self) -> Sender<ApiProposeMessage> {
+        self.tx_api.clone()
     }
 
     pub fn run(self) {
@@ -96,6 +116,7 @@ impl RaftNode {
             let mut select = Select::new();
             select.recv(&self.rx_shutdown);
             select.recv(&self.rx_inbound);
+            select.recv(&self.rx_api);
             select.recv(&self.tick);
             select.ready();
 
@@ -116,13 +137,20 @@ impl RaftNode {
                 }
             }
 
-            self.on_ready();
+            for ApiProposeMessage { id, data, resp } in self.rx_api.try_iter() {
+                let mut context = Vec::with_capacity(encoded_len_varint(id));
+                encode_varint(id, &mut context);
+                self.node.propose(context, data)?;
+                self.responses.insert(id, resp);
+            }
+
+            self.on_ready()?;
         }
     }
 
-    fn on_ready(&mut self) {
+    fn on_ready(&mut self) -> anyhow::Result<()> {
         if !self.node.has_ready() {
-            return;
+            return Ok(());
         }
 
         let mut ready = self.node.ready();
@@ -141,11 +169,49 @@ impl RaftNode {
             self.handle_message(msg, false);
         }
 
+        for ent in ready.take_committed_entries() {
+            self.handle_committed_entry(ent);
+        }
+
+        if !ready.entries().is_empty() {
+            self.node.mut_store().wl().append(ready.entries())?;
+        }
+
+        if let Some(hs) = ready.hs() {
+            self.node.mut_store().wl().set_hard_state(hs.clone());
+        }
+
         for msg in ready.take_persisted_messages() {
             self.handle_message(msg, true);
         }
 
-        self.node.advance(ready);
+        let mut light_ready = self.node.advance(ready);
+
+        for msg in light_ready.take_messages() {
+            self.handle_message(msg, false);
+        }
+
+        for ent in light_ready.take_committed_entries() {
+            self.handle_committed_entry(ent);
+        }
+
+        self.node.advance_apply();
+        Ok(())
+    }
+
+    fn handle_committed_entry(&mut self, ent: Entry) {
+        if ent.data.is_empty() {
+            // empty entry on leader elected
+            return;
+        }
+
+        // currently only normal entry
+        assert_eq!(ent.entry_type(), EntryType::EntryNormal);
+        let id = decode_varint(&mut ent.context.as_slice()).expect("malformed context");
+        let rx = self.responses.remove(&id).expect("response channel absent");
+
+        debug!("notify request {id} has been committed");
+        rx.send(ent.data).expect("response channel has been closed");
     }
 
     fn handle_message(&self, msg: Message, _is_persisted_msg: bool) {
