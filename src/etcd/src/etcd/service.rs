@@ -32,22 +32,18 @@ use crate::{
         },
         state::{EtcdState, StateRange},
     },
-    raft::ApiProposeMessage,
+    raft::{ApiMessage, ApiProposeMessage, ApiReadIndexMessage},
 };
 
 pub struct KvService {
     state: Arc<Mutex<EtcdState>>,
 
     id_gen: IdGen,
-    tx_api: Sender<ApiProposeMessage>,
+    tx_api: Sender<ApiMessage>,
 }
 
 impl KvService {
-    pub fn new(
-        member_id: u64,
-        state: Arc<Mutex<EtcdState>>,
-        tx_api: Sender<ApiProposeMessage>,
-    ) -> Self {
+    pub fn new(member_id: u64, state: Arc<Mutex<EtcdState>>, tx_api: Sender<ApiMessage>) -> Self {
         let id_gen = IdGen::new(member_id, Utc::now());
         KvService {
             state,
@@ -63,7 +59,17 @@ impl Kv for KvService {
         &self,
         request: Request<RangeRequest>,
     ) -> Result<Response<RangeResponse>, Status> {
-        let RangeRequest { key, range_end, .. } = request.into_inner();
+        let id = self.id_gen.next();
+        let req = request.into_inner();
+        debug!("internal read index {id} {req:?}");
+
+        let (tx, rx) = oneshot::channel();
+        self.tx_api
+            .send(ApiMessage::ReadIndex(ApiReadIndexMessage::new(id, tx)))
+            .map_err(|err| Status::internal(err.to_string()))?;
+        rx.await.map_err(|err| Status::internal(err.to_string()))?;
+
+        let RangeRequest { key, range_end, .. } = req;
         let state = self.state.lock().await;
         let StateRange { kvs, total } = state.range(key.into(), make_gte_range(range_end));
         let more = total > kvs.len() as u64;
@@ -78,13 +84,12 @@ impl Kv for KvService {
     async fn put(&self, request: Request<PutRequest>) -> Result<Response<PutResponse>, Status> {
         let id = self.id_gen.next();
         let req = request.into_inner();
-
         debug!("internal propose request {id} {req:?}");
         let data = req.encode_length_delimited_to_vec();
 
         let (tx, rx) = oneshot::channel();
         self.tx_api
-            .send(ApiProposeMessage::new(id, data, tx))
+            .send(ApiMessage::Propose(ApiProposeMessage::new(id, data, tx)))
             .map_err(|err| Status::internal(err.to_string()))?;
 
         let PutRequest { key, value, .. } = {

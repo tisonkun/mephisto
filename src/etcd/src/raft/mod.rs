@@ -15,12 +15,25 @@
 use derive_new::new;
 use tokio::sync::oneshot;
 
+pub mod fsm;
 pub mod node;
 pub mod service;
+
+#[derive(Debug)]
+pub enum ApiMessage {
+    Propose(ApiProposeMessage),
+    ReadIndex(ApiReadIndexMessage),
+}
 
 #[derive(new, Debug)]
 pub struct ApiProposeMessage {
     id: u64,
     data: Vec<u8>,
     resp: oneshot::Sender<Vec<u8>>,
+}
+
+#[derive(new, Debug)]
+pub struct ApiReadIndexMessage {
+    id: u64,
+    resp: oneshot::Sender<()>,
 }

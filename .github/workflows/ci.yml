@@ -37,8 +37,8 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: korandoru/hawkeye@v3
+      - uses: actions/checkout@v4
+      - uses: korandoru/hawkeye@v4
       - uses: Swatinem/rust-cache@v2
       - name: Check Clippy
         run: cargo clippy --tests --all-features --all-targets --workspace -- -D warnings
@@ -49,7 +49,7 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - name: Build all
         run: cargo build --workspace --all-features --tests --examples --benches
